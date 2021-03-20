@@ -2,9 +2,7 @@
 
 .item {
   display: grid;
-  grid-template-areas:
-    'item sockets'
-    'container sockets';
+  grid-template-areas: 'item sockets';
   gap: 6px;
   width: min-content;
   align-items: start;
@@ -73,8 +71,8 @@
 }
 
 .swapButtonContainer {
-  grid-area: container;
   display: grid;
+  padding-top: 7px;
   min-height: 24px;
   @include phone-portrait {
     min-height: 32px;
