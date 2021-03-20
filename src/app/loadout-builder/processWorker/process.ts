@@ -2,12 +2,14 @@ import { DestinySocketCategoryStyle } from 'bungie-api-ts/destiny2';
 import _ from 'lodash';
 import { armor2PlugCategoryHashesByName, TOTAL_STAT_HASH } from '../../search/d2-known-values';
 import { infoLog } from '../../utils/log';
+import { assignEnergyTypeToSlot } from '../mod-utils';
 import {
   knownModPlugCategoryHashes,
   LockableBuckets,
   MinMax,
   MinMaxIgnored,
   raidPlugCategoryHashes,
+  slotSpecificPlugCategoryHashes,
   statHashes,
   StatTypes,
 } from '../types';
@@ -101,7 +103,8 @@ export function process(
   lockedModMap: LockedProcessMods,
   assumeMasterwork: boolean,
   statOrder: StatTypes[],
-  statFilters: { [stat in StatTypes]: MinMaxIgnored }
+  statFilters: { [stat in StatTypes]: MinMaxIgnored },
+  ignoreArmorElement: boolean
 ): {
   sets: ProcessArmorSet[];
   combos: number;
@@ -190,17 +193,21 @@ export function process(
   let generalMods: ProcessMod[] = [];
   let otherMods: ProcessMod[] = [];
   let raidMods: ProcessMod[] = [];
+  const processMods: LockedProcessMods = {};
 
   for (const [plugCategoryHash, mods] of Object.entries(lockedModMap)) {
     const pch = Number(plugCategoryHash);
     if (pch === armor2PlugCategoryHashesByName.general) {
       generalMods = generalMods.concat(mods);
+    } else if (slotSpecificPlugCategoryHashes.includes(pch)) {
+      processMods[pch] = mods;
     } else if (raidPlugCategoryHashes.includes(pch)) {
       raidMods = raidMods.concat(mods);
     } else if (!knownModPlugCategoryHashes.includes(pch)) {
       otherMods = otherMods.concat(mods);
     }
   }
+  const lockedArmorElements = assignEnergyTypeToSlot({ processMods });
 
   const generalModsPermutations = generateModPermutations(generalMods);
   const otherModPermutations = generateModPermutations(otherMods);
@@ -283,7 +290,9 @@ export function process(
                   generalModsPermutations,
                   otherModPermutations,
                   raidModPermutations,
-                  armor
+                  armor,
+                  ignoreArmorElement,
+                  lockedArmorElements
                 )
               ) {
                 continue;

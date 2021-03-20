@@ -9,6 +9,18 @@ import styles from './FilterBuilds.m.scss';
 import TierSelect from './TierSelect';
 
 /**
+ * Temporary component to act as a stand in for the RangeSelector that was removed in PR6583
+ */
+const RangeSelector = ({ min, max, initialValue, onChange }) => (
+  <div>
+    RangeSelector placeholder ({min}, {max}){' '}
+    <button type="button" onClick={onChange}>
+      {initialValue}
+    </button>
+  </div>
+);
+
+/**
  * A control for filtering builds by stats, and controlling the priority order of stats.
  */
 export default function FilterBuilds({
@@ -17,6 +29,8 @@ export default function FilterBuilds({
   defs,
   order,
   assumeMasterwork,
+  ignoreArmorElement,
+  maxEnergyToIgnore,
   onStatFiltersChanged,
 }: {
   statRanges?: { [statType in StatTypes]: MinMax };
@@ -24,6 +38,8 @@ export default function FilterBuilds({
   defs: D2ManifestDefinitions;
   order: StatTypes[];
   assumeMasterwork: boolean;
+  ignoreArmorElement: boolean;
+  maxEnergyToIgnore: number;
   onStatFiltersChanged(stats: { [statType in StatTypes]: MinMaxIgnored }): void;
 }) {
   const dispatch = useDispatch();
@@ -52,10 +68,7 @@ export default function FilterBuilds({
           onStatFiltersChanged={onStatFiltersChanged}
           onStatOrderChanged={onStatOrderChanged}
         />
-        <div
-          className={styles.assumeMasterwork}
-          title={t('LoadoutBuilder.AssumeMasterworkDetailed')}
-        >
+        <div className={styles.filterCheckbox} title={t('LoadoutBuilder.AssumeMasterworkDetailed')}>
           <input
             id="lo-assume-masterwork"
             type="checkbox"
@@ -64,6 +77,33 @@ export default function FilterBuilds({
           />
           <label htmlFor="lo-assume-masterwork">{t('LoadoutBuilder.AssumeMasterwork')}</label>
         </div>
+        <div
+          className={styles.filterCheckbox}
+          title={t('LoadoutBuilder.IgnoreArmorElementDetailed')}
+        >
+          <input
+            id="ignoreArmorElement"
+            type="checkbox"
+            checked={ignoreArmorElement}
+            onChange={(e) => dispatch(setSetting('loIgnoreArmorElement', e.target.checked))}
+          />
+          <label htmlFor="ignoreArmorElement">{t('LoadoutBuilder.IgnoreArmorElement')}</label>
+        </div>
+        {ignoreArmorElement && (
+          <div className={styles.filterRange}>
+            <label id="maxEnergyToIgnore" title={t('LoadoutBuilder.SelectMaxEnergyDetailed')}>
+              {t('LoadoutBuilder.SelectMaxEnergy')}
+            </label>
+            <RangeSelector
+              min={0}
+              max={10}
+              initialValue={maxEnergyToIgnore}
+              onChange={(maxEnergyToIgnore: number) =>
+                dispatch(setSetting('loMaxEnergyToIgnore', maxEnergyToIgnore))
+              }
+            />
+          </div>
+        )}
       </div>
     </div>
   );

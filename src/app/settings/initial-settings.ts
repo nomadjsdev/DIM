@@ -10,6 +10,11 @@ export interface Settings extends DimApiSettings {
   sidecarCollapsed: boolean;
   activeMode: boolean;
 
+  /** Whether to ignore armor element for mods in the loadout optimizer. */
+  readonly loIgnoreArmorElement: boolean;
+  /** The maximum energy level to ignore on armor in the loadout optimizer. */
+  readonly loMaxEnergyToIgnore: number;
+
   /** In "Single Character Mode" DIM pretends you only have one (active) character and all the other characters' items are in the vault. */
   singleCharacter: boolean;
 }
@@ -21,5 +26,7 @@ export const initialSettingsState: Settings = {
   compareBaseStats: false,
   sidecarCollapsed: false,
   activeMode: false,
+  loIgnoreArmorElement: false,
+  loMaxEnergyToIgnore: 8,
   singleCharacter: false,
 };

@@ -51,7 +51,8 @@ export function useProcess(
   lockedModMap: LockedModMap,
   assumeMasterwork: boolean,
   statOrder: StatTypes[],
-  statFilters: { [statType in StatTypes]: MinMaxIgnored }
+  statFilters: { [statType in StatTypes]: MinMaxIgnored },
+  ignoreArmorElement: boolean
 ) {
   const [{ result, resultStoreId, processing, currentCleanup }, setState] = useState({
     processing: false,
@@ -66,7 +67,8 @@ export function useProcess(
     lockedModMap,
     assumeMasterwork,
     statOrder,
-    statFilters
+    statFilters,
+    ignoreArmorElement
   );
 
   if (currentCleanup && currentCleanup !== cleanup) {
@@ -100,6 +102,7 @@ export function useProcess(
         items,
         statOrder,
         assumeMasterwork,
+        ignoreArmorElement,
         generalMods,
         raidCombatAndLegacyMods
       );
@@ -129,7 +132,8 @@ export function useProcess(
         lockedProcessMods,
         assumeMasterwork,
         statOrder,
-        statFilters
+        statFilters,
+        ignoreArmorElement
       )
       .then(({ sets, combos, combosWithoutCaps, statRanges }) => {
         infoLog(
@@ -154,7 +158,15 @@ export function useProcess(
       });
     /* do not include things from state or worker in dependencies */
     /* eslint-disable react-hooks/exhaustive-deps */
-  }, [filteredItems, lockedItems, lockedModMap, assumeMasterwork, statOrder, statFilters]);
+  }, [
+    filteredItems,
+    lockedItems,
+    lockedModMap,
+    assumeMasterwork,
+    statOrder,
+    statFilters,
+    ignoreArmorElement,
+  ]);
 
   return { result, processing };
 }
@@ -172,7 +184,8 @@ function useWorkerAndCleanup(
   lockedModMap: LockedModMap,
   assumeMasterwork: boolean,
   statOrder: StatTypes[],
-  statFilters: { [statType in StatTypes]: MinMaxIgnored }
+  statFilters: { [statType in StatTypes]: MinMaxIgnored },
+  ignoreArmorElement?: boolean
 ) {
   const { worker, cleanup } = useMemo(() => createWorker(), [
     filteredItems,
@@ -181,6 +194,7 @@ function useWorkerAndCleanup(
     assumeMasterwork,
     statOrder,
     statFilters,
+    ignoreArmorElement,
   ]);
 
   // cleanup the worker on unmount
@@ -204,16 +218,17 @@ function createWorker() {
 
 /**
  * This groups items for process depending on whether any general, other or raid mods are locked as follows
- * - If there are general, other or raid mods locked it groups items by (stats, masterworked, modSlot, energyType).
- * - If there are only general mods locked it groupes items by (stats, masterwork, energyType)
+ * - If there are general, other or raid mods locked it groups items by (stats, masterworked, modSlot, energyType (unless armor element is being ignored)).
+ * - If there are only general mods locked it groups items by (stats, masterwork, energyType)
  * - If no general, other or raid mods are locked it groups by (stats, masterworked).
  *
- * Note that assumedMasterwork effects this.
+ * Note that assumedMasterwork and ignoreArmorElement affects this.
  */
 function groupItems(
   items: readonly DimItem[],
   statOrder: StatTypes[],
   assumeMasterwork: boolean,
+  ignoreArmorElement: boolean,
   generalMods: LockedMod[],
   raidCombatAndLegacyMods: LockedMod[]
 ) {
@@ -237,8 +252,9 @@ function groupItems(
 
     // We don't need to worry about slot specific energy as items are already filtered for that.
     if (
-      someModHasEnergyRequirement(raidCombatAndLegacyMods) ||
-      someModHasEnergyRequirement(generalMods)
+      !ignoreArmorElement &&
+      (someModHasEnergyRequirement(raidCombatAndLegacyMods) ||
+        someModHasEnergyRequirement(generalMods))
     ) {
       groupId += `${item.energy?.energyType}`;
     }

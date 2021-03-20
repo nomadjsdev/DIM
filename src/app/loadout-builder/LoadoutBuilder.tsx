@@ -48,6 +48,8 @@ interface ProvidedProps {
 interface StoreProps {
   statOrder: StatTypes[];
   assumeMasterwork: boolean;
+  ignoreArmorElement: boolean;
+  maxEnergyToIgnore: number;
   isPhonePortrait: boolean;
   items: Readonly<{
     [classType: number]: ItemsByBucket;
@@ -97,10 +99,14 @@ function mapStateToProps() {
   );
 
   return (state: RootState): StoreProps => {
-    const { loAssumeMasterwork } = settingsSelector(state);
+    const { loAssumeMasterwork, loIgnoreArmorElement, loMaxEnergyToIgnore } = settingsSelector(
+      state
+    );
     return {
       statOrder: statOrderSelector(state),
       assumeMasterwork: loAssumeMasterwork,
+      ignoreArmorElement: loIgnoreArmorElement,
+      maxEnergyToIgnore: loMaxEnergyToIgnore,
       isPhonePortrait: state.shell.isPhonePortrait,
       items: itemsSelector(state),
       loadouts: loadoutsSelector(state),
@@ -117,6 +123,8 @@ function LoadoutBuilder({
   stores,
   statOrder,
   assumeMasterwork,
+  ignoreArmorElement,
+  maxEnergyToIgnore,
   isPhonePortrait,
   items,
   defs,
@@ -151,8 +159,16 @@ function LoadoutBuilder({
   loadouts = equippedLoadout ? [...loadouts, equippedLoadout] : loadouts;
 
   const filteredItems = useMemo(
-    () => filterItems(characterItems, lockedMap, lockedArmor2Mods, filter),
-    [characterItems, lockedMap, lockedArmor2Mods, filter]
+    () =>
+      filterItems(
+        characterItems,
+        lockedMap,
+        lockedArmor2Mods,
+        ignoreArmorElement,
+        maxEnergyToIgnore,
+        filter
+      ),
+    [characterItems, lockedMap, lockedArmor2Mods, ignoreArmorElement, maxEnergyToIgnore, filter]
   );
 
   const { result, processing } = useProcess(
@@ -162,7 +178,8 @@ function LoadoutBuilder({
     lockedArmor2Mods,
     assumeMasterwork,
     statOrder,
-    statFilters
+    statFilters,
+    ignoreArmorElement
   );
 
   // A representation of the current loadout optimizer parameters that can be saved with generated loadouts
@@ -224,6 +241,8 @@ function LoadoutBuilder({
         defs={defs}
         order={statOrder}
         assumeMasterwork={assumeMasterwork}
+        ignoreArmorElement={ignoreArmorElement}
+        maxEnergyToIgnore={maxEnergyToIgnore}
       />
 
       <LockArmorAndPerks
@@ -283,6 +302,7 @@ function LoadoutBuilder({
             lockedArmor2Mods={lockedArmor2Mods}
             loadouts={loadouts}
             params={params}
+            ignoreArmorElement={ignoreArmorElement}
           />
         )}
         {modPicker.open &&
@@ -318,6 +338,7 @@ function LoadoutBuilder({
               statOrder={statOrder}
               enabledStats={enabledStats}
               assumeMasterwork={assumeMasterwork}
+              ignoreArmorElement={ignoreArmorElement}
               onClose={() => lbDispatch({ type: 'closeCompareDrawer' })}
             />,
             document.body

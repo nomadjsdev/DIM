@@ -33,6 +33,7 @@ interface Props {
   loadouts: Loadout[];
   lbDispatch: Dispatch<LoadoutBuilderAction>;
   params: LoadoutParameters;
+  ignoreArmorElement: boolean;
 }
 
 function numColumns(set: ArmorSet) {
@@ -58,6 +59,7 @@ export default function GeneratedSets({
   loadouts,
   lbDispatch,
   params,
+  ignoreArmorElement,
 }: Props) {
   const windowScroller = useRef<WindowScroller>(null);
   const [{ rowHeight, rowWidth }, setRowSize] = useState<{
@@ -164,6 +166,7 @@ export default function GeneratedSets({
           lockedArmor2Mods={lockedArmor2Mods}
           loadouts={loadouts}
           params={params}
+          ignoreArmorElement={ignoreArmorElement}
         />
       ) : sets.length > 0 ? (
         <WindowScroller ref={windowScroller}>
@@ -191,6 +194,7 @@ export default function GeneratedSets({
                   lockedArmor2Mods={lockedArmor2Mods}
                   loadouts={loadouts}
                   params={params}
+                  ignoreArmorElement={ignoreArmorElement}
                 />
               )}
               scrollTop={scrollTop}

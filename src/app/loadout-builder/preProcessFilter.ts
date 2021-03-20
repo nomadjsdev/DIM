@@ -1,6 +1,6 @@
 import { DimItem } from 'app/inventory/item-types';
 import { ItemFilter } from 'app/search/filter-types';
-import { doEnergiesMatch } from './mod-utils';
+import { doEnergiesMatch, isEnergyLower } from './mod-utils';
 import {
   bucketsToCategories,
   ItemsByBucket,
@@ -17,6 +17,8 @@ export function filterItems(
   items: ItemsByBucket | undefined,
   lockedMap: LockedMap,
   lockedModMap: LockedModMap,
+  ignoreArmorElement: boolean,
+  maxEnergyToIgnore: number,
   filter: ItemFilter
 ): ItemsByBucket {
   const filteredItems: { [bucket: number]: readonly DimItem[] } = {};
@@ -46,7 +48,7 @@ export function filterItems(
     }
   });
 
-  // filter to only include items that are in the locked map and items that have the correct energy
+  // filter to only include items that are in the locked map and items that have the correct energy unless we're ignoring armor element
   Object.values(LockableBuckets).forEach((bucket) => {
     const locked = lockedMap[bucket];
     const lockedMods = lockedModMap[bucketsToCategories[bucket]];
@@ -56,7 +58,9 @@ export function filterItems(
         (item) =>
           // handle locked items and mods cases
           (!locked || locked.every((lockedItem) => matchLockedItem(item, lockedItem))) &&
-          (!lockedMods || lockedMods.every((mod) => doEnergiesMatch(mod, item)))
+          (!lockedMods ||
+            lockedMods.every((mod) => doEnergiesMatch(mod, item)) ||
+            (ignoreArmorElement && isEnergyLower(item, maxEnergyToIgnore)))
       );
     }
   });

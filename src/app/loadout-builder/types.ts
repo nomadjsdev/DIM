@@ -5,6 +5,7 @@ import {
   armorBuckets,
   D2ArmorStatHashByName,
 } from 'app/search/d2-known-values';
+import { DestinyEnergyType } from 'bungie-api-ts/destiny2';
 import { PlugCategoryHashes } from 'data/d2/generated-enums';
 import _ from 'lodash';
 import { DimItem, PluggableInventoryItemDefinition } from '../inventory/item-types';
@@ -61,6 +62,10 @@ export interface LockedMod {
 
 export type LockedModMap = {
   [plugCategoryHash: number]: LockedMod[] | undefined;
+};
+
+export type LockedArmorElements = {
+  [armorType in 'Helmet' | 'Gauntlets' | 'Chest' | 'Leg' | 'ClassItem']: DestinyEnergyType;
 };
 
 /**

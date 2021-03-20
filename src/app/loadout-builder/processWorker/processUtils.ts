@@ -1,5 +1,6 @@
 import { DestinyEnergyType } from 'bungie-api-ts/destiny2';
 import { MAX_ARMOR_ENERGY_CAPACITY } from '../../search/d2-known-values';
+import { LockedArmorElements } from '../types';
 import { ProcessItem, ProcessMod } from './types';
 
 interface SortParam {
@@ -126,6 +127,8 @@ export function canTakeSlotIndependantMods(
   otherModPermutations: (ProcessMod | null)[][],
   raidModPermutations: (ProcessMod | null)[][],
   items: ProcessItem[],
+  ignoreArmorElement: boolean,
+  lockedArmorElements: LockedArmorElements,
   assignments?: Record<string, number[]>
 ) {
   // Sort the items like the mods are to try and get a greedy result
@@ -140,121 +143,135 @@ export function canTakeSlotIndependantMods(
   );
 
   if (
-    voidItems < voidGeneralMods ||
-    voidItems < voidSeasonalMods ||
-    solarItems < solarGeneralModsMods ||
-    solarItems < solarSeasonalMods ||
-    arcItems < arcGeneralMods ||
-    arcItems < arcSeasonalMods
+    !ignoreArmorElement &&
+    (voidItems < voidGeneralMods ||
+      voidItems < voidSeasonalMods ||
+      solarItems < solarGeneralModsMods ||
+      solarItems < solarSeasonalMods ||
+      arcItems < arcGeneralMods ||
+      arcItems < arcSeasonalMods)
   ) {
     return false;
   }
 
   const defaultModEnergy = { val: 0, type: DestinyEnergyType.Any };
 
-  for (const otherP of otherModPermutations) {
-    let othersFit = true;
-    for (let i = 0; i < sortedItems.length; i++) {
-      const item = sortedItems[i];
-      const tag = otherP[i]?.tag;
-      const otherEnergy = otherP[i]?.energy || defaultModEnergy;
-
-      const noOtherMod = !otherP[i];
-      const otherEnergyIsValid =
-        item.energy &&
-        item.energy.val + (otherEnergy.val || 0) <= MAX_ARMOR_ENERGY_CAPACITY &&
-        (item.energy.type === otherEnergy.type || otherEnergy.type === DestinyEnergyType.Any);
-
-      othersFit &&= Boolean(
-        noOtherMod || (otherEnergyIsValid && tag && item.compatibleModSeasons?.includes(tag))
-      );
-
-      if (!othersFit) {
-        break;
-      }
-    }
-
-    if (!othersFit) {
-      continue;
-    }
-
-    for (const generalP of generalModPermutations) {
-      let generalsFit = true;
+  function checkAndAssignMods(ignoringArmorElement = false): boolean {
+    for (const otherP of otherModPermutations) {
+      let othersFit = true;
       for (let i = 0; i < sortedItems.length; i++) {
         const item = sortedItems[i];
-        const generalEnergy = generalP[i]?.energy || defaultModEnergy;
+        const tag = otherP[i]?.tag;
         const otherEnergy = otherP[i]?.energy || defaultModEnergy;
 
-        const noGeneralMod = !generalP[i];
-        const generalEnergyIsValid =
+        const noOtherMod = !otherP[i];
+        const otherEnergyIsValid =
           item.energy &&
-          item.energy.val + generalEnergy.val + otherEnergy.val <= MAX_ARMOR_ENERGY_CAPACITY &&
-          (item.energy.type === generalEnergy.type || generalEnergy.type === DestinyEnergyType.Any);
+          item.energy.val + (otherEnergy.val || 0) <= MAX_ARMOR_ENERGY_CAPACITY &&
+          (otherEnergy.type === DestinyEnergyType.Any ||
+            ((!lockedArmorElements[item.type] ||
+              otherEnergy.type === lockedArmorElements[item.type]) &&
+              (ignoringArmorElement || item.energy.type === otherEnergy.type)));
 
-        generalsFit &&= Boolean(noGeneralMod || generalEnergyIsValid);
+        othersFit &&= Boolean(
+          noOtherMod || (otherEnergyIsValid && tag && item.compatibleModSeasons?.includes(tag))
+        );
 
-        if (!generalsFit) {
+        if (!othersFit) {
           break;
         }
       }
 
-      for (const raidP of raidModPermutations) {
-        let raidsFit = true;
+      if (!othersFit) {
+        continue;
+      }
+
+      for (const generalP of generalModPermutations) {
+        let generalsFit = true;
         for (let i = 0; i < sortedItems.length; i++) {
           const item = sortedItems[i];
-          const raidTag = raidP[i]?.tag;
           const generalEnergy = generalP[i]?.energy || defaultModEnergy;
           const otherEnergy = otherP[i]?.energy || defaultModEnergy;
-          const raidEnergy = raidP[i]?.energy || defaultModEnergy;
 
-          const noRaidMod = !raidP[i];
-          const raidEnergyIsValid =
+          const noGeneralMod = !generalP[i];
+          const generalEnergyIsValid =
             item.energy &&
-            item.energy.val + generalEnergy.val + otherEnergy.val + raidEnergy.val <=
-              MAX_ARMOR_ENERGY_CAPACITY &&
-            (item.energy.type === raidEnergy.type || raidEnergy.type === DestinyEnergyType.Any);
+            item.energy.val + generalEnergy.val + otherEnergy.val <= MAX_ARMOR_ENERGY_CAPACITY &&
+            (generalEnergy.type === DestinyEnergyType.Any ||
+              ((!lockedArmorElements[item.type] ||
+                generalEnergy.type === lockedArmorElements[item.type]) &&
+                (ignoringArmorElement || item.energy.type === generalEnergy.type)));
 
-          // Due to raid mods overlapping with legacy mods for last wish we need to ensure
-          // that if an item has a legacy mod socket then another mod is not already intended
-          // for this socket.
-          const notLegacySocketOrLegacyMod = !item.hasLegacyModSocket || !otherP[i];
+          generalsFit &&= Boolean(noGeneralMod || generalEnergyIsValid);
 
-          raidsFit &&= Boolean(
-            noRaidMod ||
-              (raidEnergyIsValid &&
-                notLegacySocketOrLegacyMod &&
-                raidTag &&
-                item.compatibleModSeasons?.includes(raidTag))
-          );
+          if (!generalsFit) {
+            break;
+          }
         }
 
-        if (!raidsFit) {
-          break;
-        }
+        for (const raidP of raidModPermutations) {
+          let raidsFit = true;
+          for (let i = 0; i < sortedItems.length; i++) {
+            const item = sortedItems[i];
+            const raidTag = raidP[i]?.tag;
+            const generalEnergy = generalP[i]?.energy || defaultModEnergy;
+            const otherEnergy = otherP[i]?.energy || defaultModEnergy;
+            const raidEnergy = raidP[i]?.energy || defaultModEnergy;
 
-        if (raidsFit && generalsFit && othersFit) {
-          if (assignments) {
-            for (let i = 0; i < sortedItems.length; i++) {
-              const generalMod = generalP[i];
-              const otherMod = otherP[i];
-              const raidMod = raidP[i];
-              if (generalMod) {
-                assignments[sortedItems[i].id].push(generalMod.hash);
-              }
-              if (otherMod) {
-                assignments[sortedItems[i].id].push(otherMod.hash);
-              }
-              if (raidMod) {
-                assignments[sortedItems[i].id].push(raidMod.hash);
-              }
-            }
+            const noRaidMod = !raidP[i];
+            const raidEnergyIsValid =
+              item.energy &&
+              item.energy.val + generalEnergy.val + otherEnergy.val + raidEnergy.val <=
+                MAX_ARMOR_ENERGY_CAPACITY &&
+              (raidEnergy.type === DestinyEnergyType.Any ||
+                ((!lockedArmorElements[item.type] ||
+                  raidEnergy.type === lockedArmorElements[item.type]) &&
+                  (ignoringArmorElement || item.energy.type === raidEnergy.type)));
+
+            // Due to raid mods overlapping with legacy mods for last wish we need to ensure
+            // that if an item has a legacy mod socket then another mod is not already intended
+            // for this socket.
+            const notLegacySocketOrLegacyMod = !item.hasLegacyModSocket || !otherP[i];
+
+            raidsFit &&= Boolean(
+              noRaidMod ||
+                (raidEnergyIsValid &&
+                  notLegacySocketOrLegacyMod &&
+                  raidTag &&
+                  item.compatibleModSeasons?.includes(raidTag))
+            );
           }
 
-          return true;
+          if (!raidsFit) {
+            break;
+          }
+
+          if (raidsFit && generalsFit && othersFit) {
+            if (assignments) {
+              for (let i = 0; i < sortedItems.length; i++) {
+                const generalMod = generalP[i];
+                const otherMod = otherP[i];
+                const raidMod = raidP[i];
+                if (generalMod) {
+                  assignments[sortedItems[i].id].push(generalMod.hash);
+                }
+                if (otherMod) {
+                  assignments[sortedItems[i].id].push(otherMod.hash);
+                }
+                if (raidMod) {
+                  assignments[sortedItems[i].id].push(raidMod.hash);
+                }
+              }
+            }
+
+            return true;
+          }
         }
       }
     }
+
+    return !ignoringArmorElement && ignoreArmorElement ? checkAndAssignMods(true) : false;
   }
 
-  return false;
+  return checkAndAssignMods();
 }
